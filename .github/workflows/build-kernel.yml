@@ -1,0 +1,71 @@
+name: Build AVD Kernel (KernelSU-Next)
+
+# يبني نواة Android 17 / GKI 6.12.58 (x86_64) مع KernelSU-Next مدمج،
+# لتعمل على محاكي Android Studio (AVD) بدون تعديل صور النظام.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: avd-kernel-build
+  cancel-in-progress: false
+
+jobs:
+  build-kernel:
+    # ‏runner قياسي: 4 أنوية / 16GB ذاكرة / ~14GB قرص متاح
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Runner info
+        run: |
+          echo "cores: $(nproc)"
+          free -g | head -2
+          df -h / /home
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                       /usr/local/.ghcup /usr/share/swift /opt/hostedtoolcache/CodeQL \
+                       /usr/lib/jvm/temurin-21* /usr/local/share/boost || true
+          sudo rm -rf /var/lib/apt/lists/* || true
+          sudo apt-get clean || true
+          df -h /
+
+      - name: Prepare kernel workspace (repo sync + KernelSU-Next)
+        env:
+          WORKSPACE: ${{ github.workspace }}/ws
+          SPARSE_TOOLCHAINS: "1"     # يختار clang-r536225 و rust 1.82.0 فقط (~10GB توفير)
+          PRUNE_GIT_OBJECTS: "1"     # يحذف كائنات git بعد المزامنة
+          SYNC_JOBS: "4"
+        run: ./scripts/prepare-workspace.sh
+
+      - name: Build kernel
+        env:
+          WORKSPACE: ${{ github.workspace }}/ws
+          OUT_DIR: ${{ github.workspace }}/out
+        run: ./scripts/build-kernel.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: avd-kernel-kernelsu-next
+          path: ${{ github.workspace }}/out/
+          retention-days: 90
+
+      - name: Attach to GitHub Release (only on tags v*)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ github.workspace }}/out/kernel-ranchu
+            ${{ github.workspace }}/out/kernel-ranchu.sha256
+            ${{ github.workspace }}/out/kernel-info.txt
