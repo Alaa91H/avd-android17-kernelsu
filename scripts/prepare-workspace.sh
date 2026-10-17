@@ -28,15 +28,18 @@ KSU_TAG="${KSU_TAG:-v3.4.2}"
 # اللاحقة التي تضيفها Kleaf بعد البادئة (-android16-6)
 LOCALVERSION="${LOCALVERSION:--gccafb60de224-ab14828483}"
 
-# أدوات سلاسل الترجمة الضخمة: نأخذ منها النسخة المستخدمة فقط (توفير ~10GB)
+# أدوات سلاسل الترجمة الضخمة. عند SPARSE_TOOLCHAINS=1 نأخذ منها النسخ
+# المستخدمة فقط (توفير ~10GB). runners الجافزة قرصها ضخم، فالقيم الافتراضية 0.
+SPARSE_TOOLCHAINS="${SPARSE_TOOLCHAINS:-0}"
 CLANG_REPO_URL="${CLANG_REPO_URL:-https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86}"
 CLANG_PATHS="${CLANG_PATHS:-clang-r536225 clang-stable llvm-binutils-stable kleaf profiles embedded-sysroots docs}"
 RUST_REPO_URL="${RUST_REPO_URL:-https://android.googlesource.com/platform/prebuilts/rust}"
 RUST_PATHS="${RUST_PATHS:-linux-x86/1.82.0 bootstrap}"
-SPARSE_TOOLCHAINS="${SPARSE_TOOLCHAINS:-1}"
+NDK_REPO_URL="${NDK_REPO_URL:-https://android.googlesource.com/toolchain/prebuilts/ndk/r26}"
+NDK_PATHS="${NDK_PATHS:-toolchains/llvm/prebuilt/linux-x86_64/sysroot}"
 
-# مشاريع غير لازمة لبناء صورة النواة
-EXCLUDE_PROJECTS_RE="${EXCLUDE_PROJECTS_RE:-^(prebuilts/clang/host/linux-x86|prebuilts/rust|prebuilts/fuchsia_sdk|prebuilts/ndk-r26|test/.*|kernel/tests|external/arm-trusted-firmware|bootable/recovery|bootable/libbootloader|common-modules/virtio-media|common-modules/trusty|external/boringssl|external/compiler-rt|external/googletest)$}"
+# مشاريع غير لازمة لبناء صورة نواة x86_64 (اختياري — توفير وقت/مساحة)
+EXCLUDE_PROJECTS_RE="${EXCLUDE_PROJECTS_RE:-^(test/.*|kernel/tests|prebuilts/fuchsia_sdk|external/arm-trusted-firmware|bootable/recovery|bootable/libbootloader|common-modules/virtio-media|common-modules/trusty)$}"
 
 PRUNE_GIT_OBJECTS="${PRUNE_GIT_OBJECTS:-0}"
 REPO_BIN="${REPO_BIN:-$HOME/bin/repo}"
@@ -98,10 +101,13 @@ PY
   (cd "$WORKSPACE" && "$REPO_BIN" sync -c -j"${SYNC_JOBS:-4}" --no-tags "${PROJECTS[@]}")
 fi
 
-# ------------------------------------------------------------------ 3) أدوات الترجمة (استنساخ ناقص)
+# ------------------------------------------------------------------ 3) أدوات الترجمة (اختياري: استنساخ ناقص)
 if [[ "$SPARSE_TOOLCHAINS" == "1" ]]; then
   clone_sparse "$CLANG_REPO_URL" "$DEFAULT_REV" "$WORKSPACE/prebuilts/clang/host/linux-x86" $CLANG_PATHS
   clone_sparse "$RUST_REPO_URL"   "$DEFAULT_REV" "$WORKSPACE/prebuilts/rust"                 $RUST_PATHS
+  clone_sparse "$NDK_REPO_URL"    "$DEFAULT_REV" "$WORKSPACE/prebuilts/ndk-r26"               $NDK_PATHS
+else
+  log "استخدام نسخ الأدوات الكاملة من repo sync"
 fi
 
 # ------------------------------------------------------------------ 4) نفس commit نواة المحاكي

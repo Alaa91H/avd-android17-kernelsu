@@ -43,7 +43,6 @@ jobs:
       - name: Prepare kernel workspace (repo sync + KernelSU-Next)
         env:
           WORKSPACE: ${{ github.workspace }}/ws
-          SPARSE_TOOLCHAINS: "1"     # يختار clang-r536225 و rust 1.82.0 فقط (~10GB توفير)
           PRUNE_GIT_OBJECTS: "1"     # يحذف كائنات git بعد المزامنة
           SYNC_JOBS: "4"
         run: ./scripts/prepare-workspace.sh
