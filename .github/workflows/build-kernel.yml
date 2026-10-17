@@ -4,9 +4,13 @@ name: Build AVD Kernel (KernelSU-Next)
 # لتعمل على محاكي Android Studio (AVD) بدون تعديل صور النظام.
 on:
   workflow_dispatch:
+    inputs:
+      attach_release_tag:
+        description: 'Release tag to attach the kernel to (e.g. v1.0.0). Leave empty to skip.'
+        required: false
+        default: ''
   push:
     branches: [main]
-    tags: ['v*']
 
 permissions:
   contents: write
@@ -60,10 +64,11 @@ jobs:
           path: ${{ github.workspace }}/out/
           retention-days: 90
 
-      - name: Attach to GitHub Release (only on tags v*)
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Attach to GitHub Release (optional)
+        if: inputs.attach_release_tag != ''
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.attach_release_tag }}
           files: |
             ${{ github.workspace }}/out/kernel-ranchu
             ${{ github.workspace }}/out/kernel-ranchu.sha256
